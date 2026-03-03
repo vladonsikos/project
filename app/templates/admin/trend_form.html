@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}{% if trend %}Редактировать{% else %}Создать{% endif %} тренд - Trendsee{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 col-lg-8 mx-auto">
+        <div class="mb-4">
+            <a href="/admin/trends" class="btn btn-secondary btn-sm">← Вернуться в админ</a>
+        </div>
+
+        <h1>{% if trend %}Редактировать тренд{% else %}Создать новый тренд{% endif %}</h1>
+
+        <form id="trend-form" class="card p-4">
+            <div class="mb-3">
+                <label for="title" class="form-label">
+                    <strong>Название *</strong>
+                </label>
+                <input 
+                    type="text" 
+                    id="title" 
+                    name="title" 
+                    class="form-control" 
+                    placeholder="Введите название тренда"
+                    value="{% if trend %}{{ trend.title }}{% endif %}"
+                    required>
+            </div>
+
+            <div class="mb-3">
+                <label for="type" class="form-label">
+                    <strong>Тип *</strong>
+                </label>
+                <select id="type" name="type" class="form-select" required>
+                    <option value="">Выберите тип...</option>
+                    <option value="photo" {% if trend and trend.type == 'photo' %}selected{% endif %}>📷 Фото</option>
+                    <option value="video" {% if trend and trend.type == 'video' %}selected{% endif %}>🎥 Видео</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="preview_url" class="form-label">
+                    <strong>URL превью</strong>
+                </label>
+                <input 
+                    type="url" 
+                    id="preview_url" 
+                    name="preview_url" 
+                    class="form-control" 
+                    placeholder="https://example.com/image.jpg"
+                    value="{% if trend %}{{ trend.preview_url or '' }}{% endif %}">
+                <small class="text-muted">Ссылка на изображение превью</small>
+            </div>
+
+            <div class="mb-3">
+                <label for="tags" class="form-label">
+                    <strong>Теги</strong>
+                </label>
+                <input 
+                    type="text" 
+                    id="tags" 
+                    name="tags" 
+                    class="form-control" 
+                    placeholder="тег1, тег2, тег3"
+                    value="{% if trend %}{{ trend.tags | join(', ') }}{% endif %}">
+                <small class="text-muted">Разделяйте теги запятыми</small>
+            </div>
+
+            <div class="mb-3">
+                <label for="price_tokens" class="form-label">
+                    <strong>Цена (токены) *</strong>
+                </label>
+                <input 
+                    type="number" 
+                    id="price_tokens" 
+                    name="price_tokens" 
+                    class="form-control" 
+                    placeholder="10"
+                    value="{% if trend %}{{ trend.price_tokens }}{% else %}10{% endif %}"
+                    min="1"
+                    required>
+            </div>
+
+            <div class="mb-3">
+                <div class="form-check">
+                    <input 
+                        type="checkbox" 
+                        id="is_popular" 
+                        name="is_popular" 
+                        class="form-check-input"
+                        {% if trend and trend.is_popular %}checked{% endif %}>
+                    <label class="form-check-label" for="is_popular">
+                        ★ Отметить как популярный
+                    </label>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <div class="form-check">
+                    <input 
+                        type="checkbox" 
+                        id="is_active" 
+                        name="is_active" 
+                        class="form-check-input"
+                        {% if not trend or trend.is_active %}checked{% endif %}>
+                    <label class="form-check-label" for="is_active">
+                        ● Активен (видим в каталоге)
+                    </label>
+                </div>
+            </div>
+
+            <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+
+            <div class="d-grid gap-2 d-sm-flex justify-content-sm-end">
+                <a href="/admin/trends" class="btn btn-secondary">Отмена</a>
+                <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">
+                    {% if trend %}Сохранить{% else %}Создать тренд{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const form = document.getElementById('trend-form');
+    const errorMessage = document.getElementById('error-message');
+    const submitBtn = document.getElementById('submit-btn');
+    const trendId = {% if trend %}{{ trend.id }}{% else %}null{% endif %};
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        errorMessage.style.display = 'none';
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Сохранение...';
+
+        try {
+            const tagsInput = document.getElementById('tags').value;
+            const tags = tagsInput
+                ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag)
+                : [];
+
+            const trendData = {
+                title: document.getElementById('title').value,
+                type: document.getElementById('type').value,
+                preview_url: document.getElementById('preview_url').value || null,
+                tags: tags,
+                price_tokens: parseInt(document.getElementById('price_tokens').value),
+                is_popular: document.getElementById('is_popular').checked,
+                is_active: document.getElementById('is_active').checked,
+            };
+
+            let url = '/api/trends';
+            let method = 'POST';
+
+            if (trendId) {
+                url = `/api/trends/${trendId}`;
+                method = 'PATCH';
+            }
+
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(trendData),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Ошибка при сохранении тренда');
+            }
+
+            window.location.href = '/admin/trends';
+
+        } catch (error) {
+            console.error('Ошибка:', error);
+            errorMessage.textContent = error.message || 'Произошла ошибка';
+            errorMessage.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.textContent = trendId ? 'Сохранить' : 'Создать тренд';
+        }
+    });
+</script>
+{% endblock %}

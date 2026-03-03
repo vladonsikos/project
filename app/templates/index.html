@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Каталог трендов - Trendsee{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1>Каталог трендов</h1>
+        <p class="text-muted">Выберите тренд для создания контента</p>
+    </div>
+</div>
+
+<div class="row g-2 g-sm-3 g-md-4">
+    {% if trends %}
+        {% for trend in trends %}
+        <div class="col-12 col-sm-6 col-lg-4">
+            <a href="/trends/{{ trend.id }}/generate" class="text-decoration-none">
+                <div class="card h-100 trend-card">
+                    {% if trend.preview_url %}
+                    <img src="{{ trend.preview_url }}" class="card-img-top" alt="{{ trend.title }}" style="height: 200px; object-fit: cover;">
+                    {% else %}
+                    <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 200px;">
+                        <span class="text-white">Нет превью</span>
+                    </div>
+                    {% endif %}
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title">{{ trend.title }}</h5>
+                            {% if trend.is_popular %}
+                            <span class="badge bg-warning text-dark">★</span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-2">
+                            <span class="badge bg-info">
+                                {% if trend.type == 'photo' %}
+                                📷 Фото
+                                {% elif trend.type == 'video' %}
+                                🎥 Видео
+                                {% endif %}
+                            </span>
+                            {% if trend.is_active %}
+                            <span class="badge bg-success">●</span>
+                            {% else %}
+                            <span class="badge bg-danger">●</span>
+                            {% endif %}
+                        </div>
+
+                        {% if trend.tags %}
+                        <div class="mb-2">
+                            {% for tag in trend.tags %}
+                            <span class="badge bg-light text-dark">#{{ tag }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <p class="card-text text-muted">
+                            💰 {{ trend.price_tokens }} токенов
+                        </p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="col-12">
+        <div class="alert alert-info" role="alert">
+            <h4 class="alert-heading">Нет доступных трендов</h4>
+            <p>В данный момент нет активных трендов. Пожалуйста, приходите позже или перейдите на <a href="/admin/trends">панель администратора</a> для создания новых трендов.</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .trend-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+        border: 1px solid #dee2e6;
+    }
+
+    .trend-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .trend-card .card-img-top {
+        border-bottom: 1px solid #dee2e6;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,92 @@
+
+services:
+  db:
+    image: postgres:15
+    container_name: trendsee_db
+    environment:
+      POSTGRES_USER: trendsee_user
+      POSTGRES_PASSWORD: trendsee_password
+      POSTGRES_DB: trendsee
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trendsee_user -d trendsee"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - trendsee_network
+
+  redis:
+    image: redis:7
+    container_name: trendsee_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - trendsee_network
+
+  app:
+    build: .
+    container_name: trendsee_app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://trendsee_user:trendsee_password@db:5432/trendsee
+      SYNC_DATABASE_URL: postgresql://trendsee_user:trendsee_password@db:5432/trendsee
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      SECRET_KEY: your_secret_key_here_change_in_production
+      INITIAL_BALANCE: "1000"
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENROUTER_MODEL: openrouter/free
+    volumes:
+      - .:/app
+      - trendsee_uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - trendsee_network
+
+  celery-worker:
+    build: .
+    container_name: trendsee_celery_worker
+    command: celery -A celery_worker.app worker --loglevel=info
+    environment:
+      DATABASE_URL: postgresql+asyncpg://trendsee_user:trendsee_password@db:5432/trendsee
+      SYNC_DATABASE_URL: postgresql://trendsee_user:trendsee_password@db:5432/trendsee
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      SECRET_KEY: your_secret_key_here_change_in_production
+      INITIAL_BALANCE: "1000"
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENROUTER_MODEL: openrouter/free
+    volumes:
+      - .:/app
+      - trendsee_uploads:/app/uploads
+    depends_on:
+      - db
+      - redis
+      - app
+    networks:
+      - trendsee_network
+
+volumes:
+  postgres_data:
+  trendsee_uploads:
+
+networks:
+  trendsee_network:
+    driver: bridge

@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Создание контента - {{ trend.title }} - Trendsee{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 col-lg-8 mx-auto">
+        <div class="mb-4">
+            <a href="/" class="btn btn-secondary btn-sm">← Вернуться в каталог</a>
+        </div>
+
+        <h1>Создание контента</h1>
+        <h3 class="text-muted mb-4">{{ trend.title }}</h3>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <p class="lead">
+                    <strong>Цена:</strong> 
+                    <span class="badge bg-warning text-dark">💰 {{ trend.price_tokens }} токенов</span>
+                </p>
+                {% if trend.type %}
+                <p>
+                    <strong>Тип:</strong> 
+                    {% if trend.type == 'photo' %}
+                    📷 Фото
+                    {% elif trend.type == 'video' %}
+                    🎥 Видео
+                    {% endif %}
+                </p>
+                {% endif %}
+                {% if trend.tags %}
+                <p>
+                    <strong>Теги:</strong> 
+                    {% for tag in trend.tags %}
+                    <span class="badge bg-light text-dark">#{{ tag }}</span>
+                    {% endfor %}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <form id="generation-form" class="card p-4">
+            <div class="mb-3">
+                <label for="prompt" class="form-label">
+                    <strong>Промпт *</strong>
+                </label>
+                <textarea 
+                    id="prompt" 
+                    name="prompt" 
+                    class="form-control" 
+                    rows="5" 
+                    placeholder="Введите ваш промпт для генерации здесь..."
+                    required>
+                </textarea>
+                <small class="text-muted">Описание контента, который вы хотите создать</small>
+            </div>
+
+            <div class="mb-3">
+                <label for="materials" class="form-label">
+                    <strong>Дополнительные материалы</strong>
+                </label>
+                <textarea 
+                    id="materials" 
+                    name="materials" 
+                    class="form-control" 
+                    rows="3" 
+                    placeholder="Опционально: дополнительная информация, ссылки или рекомендации...">
+                </textarea>
+                <small class="text-muted">Опционально: ссылки, ссылки на контент или дополнительный контекст</small>
+            </div>
+
+            <div class="mb-3">
+                <label for="files" class="form-label">
+                    <strong>Загрузить файлы</strong>
+                </label>
+                <input 
+                    type="file" 
+                    id="files" 
+                    name="files" 
+                    class="form-control" 
+                    multiple>
+                <small class="text-muted">Опционально: загрузите вспомогательные файлы</small>
+                <div id="file-list" class="mt-2"></div>
+            </div>
+
+            <div class="d-grid gap-2 d-sm-flex justify-content-sm-end">
+                <a href="/" class="btn btn-secondary">Отмена</a>
+                <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">
+                    Создать ({{ trend.price_tokens }} токенов)
+                </button>
+            </div>
+
+            <div id="error-message" class="alert alert-danger mt-3" style="display: none;"></div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const trendId = {{ trend.id }};
+    const form = document.getElementById('generation-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const errorMessage = document.getElementById('error-message');
+    const fileInput = document.getElementById('files');
+    const fileList = document.getElementById('file-list');
+    let uploadedAssetIds = [];
+
+    fileInput.addEventListener('change', function() {
+        fileList.innerHTML = '';
+        if (this.files.length > 0) {
+            const list = document.createElement('ul');
+            list.className = 'list-group';
+            for (let i = 0; i < this.files.length; i++) {
+                const item = document.createElement('li');
+                item.className = 'list-group-item d-flex justify-content-between align-items-center';
+                item.textContent = this.files[i].name + ' (' + (this.files[i].size / 1024).toFixed(2) + ' КБ)';
+                list.appendChild(item);
+            }
+            fileList.appendChild(list);
+        }
+    });
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        errorMessage.style.display = 'none';
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Обработка...';
+
+        try {
+            if (fileInput.files.length > 0) {
+                const formData = new FormData();
+                for (let i = 0; i < fileInput.files.length; i++) {
+                    formData.append('files', fileInput.files[i]);
+                }
+
+                const uploadResponse = await fetch('/api/assets/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!uploadResponse.ok) {
+                    throw new Error('Ошибка при загрузке файлов');
+                }
+
+                const uploadedAssets = await uploadResponse.json();
+                uploadedAssetIds = uploadedAssets.map(asset => asset.id);
+            }
+
+            const generationData = {
+                trend_id: trendId,
+                prompt: document.getElementById('prompt').value,
+                materials: document.getElementById('materials').value || null,
+                asset_ids: uploadedAssetIds,
+            };
+
+            const response = await fetch('/api/generations', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(generationData),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Ошибка при запуске генерации');
+            }
+
+            const result = await response.json();
+            
+            window.location.href = `/generations/${result.id}`;
+
+        } catch (error) {
+            console.error('Ошибка:', error);
+            errorMessage.textContent = error.message || 'Произошла ошибка';
+            errorMessage.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.textContent = `Создать ({{ trend.price_tokens }} токенов)`;
+        }
+    });
+</script>
+{% endblock %}

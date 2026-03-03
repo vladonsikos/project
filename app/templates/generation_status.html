@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Статус генерации - Trendsee{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 col-lg-8 mx-auto">
+        <div class="mb-4">
+            <a href="/" class="btn btn-secondary btn-sm">← Вернуться в каталог</a>
+        </div>
+
+        <h1>Статус генерации</h1>
+        <p class="text-muted">ID генерации: #{{ generation.id }}</p>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">{{ trend.title }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Статус:</strong>
+                    <span id="status-badge" class="badge bg-info">{{ generation.status }}</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Потрачено токенов:</strong> {{ generation.price_spent }}
+                </div>
+                <div class="mb-3">
+                    <strong>Создано:</strong> {{ generation.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h6 class="card-title">Статус обработки</h6>
+                <div class="progress" style="height: 25px;">
+                    <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                <p id="status-text" class="mt-2 text-muted">Ожидание начала обработки...</p>
+            </div>
+        </div>
+
+        <div id="result-section" class="card" style="display: none;">
+            <div class="card-header">
+                <h5 class="mb-0">Результат</h5>
+            </div>
+            <div class="card-body">
+                <div id="result-content"></div>
+            </div>
+        </div>
+
+        <div id="error-section" class="alert alert-danger" style="display: none;">
+            <h4 class="alert-heading">Генерация не удалась</h4>
+            <p id="error-text"></p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const generationId = {{ generation.id }};
+    let statusCheckInterval;
+
+    function updateStatusBadge(status) {
+        const badge = document.getElementById('status-badge');
+        const statusMap = {
+            'pending': 'В ожидании',
+            'processing': 'Обработка',
+            'completed': 'Завершено',
+            'failed': 'Ошибка'
+        };
+        badge.textContent = statusMap[status] || status;
+        
+        switch(status) {
+            case 'pending':
+                badge.className = 'badge bg-secondary';
+                break;
+            case 'processing':
+                badge.className = 'badge bg-info';
+                break;
+            case 'completed':
+                badge.className = 'badge bg-success';
+                break;
+            case 'failed':
+                badge.className = 'badge bg-danger';
+                break;
+            default:
+                badge.className = 'badge bg-secondary';
+        }
+    }
+
+    function updateProgressBar(status) {
+        const progressBar = document.getElementById('progress-bar');
+        const statusText = document.getElementById('status-text');
+        
+        switch(status) {
+            case 'pending':
+                progressBar.style.width = '25%';
+                statusText.textContent = 'В ожидании: ожидание начала обработки...';
+                break;
+            case 'processing':
+                progressBar.style.width = '75%';
+                statusText.textContent = 'Обработка: создание вашего контента...';
+                break;
+            case 'completed':
+                progressBar.style.width = '100%';
+                statusText.textContent = 'Завершено: ваш контент готов!';
+                break;
+            case 'failed':
+                progressBar.style.width = '100%';
+                progressBar.className = 'progress-bar bg-danger';
+                statusText.textContent = 'Ошибка: произошла ошибка при генерации.';
+                break;
+        }
+    }
+
+    async function checkStatus() {
+        try {
+            const response = await fetch(`/api/generations/${generationId}`);
+            if (!response.ok) {
+                throw new Error('Ошибка при получении статуса генерации');
+            }
+
+            const generation = await response.json();
+            
+            updateStatusBadge(generation.status);
+            updateProgressBar(generation.status);
+
+            if (generation.status === 'completed' && generation.result_text) {
+                clearInterval(statusCheckInterval);
+                const resultSection = document.getElementById('result-section');
+                const resultContent = document.getElementById('result-content');
+                
+                resultContent.innerHTML = `<p>${generation.result_text.replace(/\n/g, '<br>')}</p>`;
+                resultSection.style.display = 'block';
+            }
+
+            if (generation.status === 'failed') {
+                clearInterval(statusCheckInterval);
+                const errorSection = document.getElementById('error-section');
+                const errorText = document.getElementById('error-text');
+                
+                errorText.textContent = generation.result_text || 'Произошла неизвестная ошибка';
+                errorSection.style.display = 'block';
+            }
+
+        } catch (error) {
+            console.error('Ошибка при проверке статуса:', error);
+        }
+    }
+
+    checkStatus();
+
+    statusCheckInterval = setInterval(checkStatus, 2000);
+
+    setTimeout(() => {
+        if (statusCheckInterval) {
+            clearInterval(statusCheckInterval);
+        }
+    }, 5 * 60 * 1000);
+</script>
+{% endblock %}

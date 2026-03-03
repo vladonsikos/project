@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Админ - Управление трендами - Trendsee{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="/" class="btn btn-secondary btn-sm">← Вернуться в каталог</a>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h1 class="mb-0">Управление трендами</h1>
+    <a href="/admin/trends/create" class="btn btn-success">
+        ➕ Создать тренд
+    </a>
+</div>
+
+{% if trends %}
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Название</th>
+                <th>Тип</th>
+                <th>Цена</th>
+                <th>Активен</th>
+                <th>Популярный</th>
+                <th>Теги</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for trend in trends %}
+            <tr>
+                <td>#{{ trend.id }}</td>
+                <td>{{ trend.title }}</td>
+                <td>
+                    {% if trend.type == 'photo' %}
+                    📷 Фото
+                    {% elif trend.type == 'video' %}
+                    🎥 Видео
+                    {% else %}
+                    {{ trend.type }}
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge bg-warning text-dark">{{ trend.price_tokens }} токенов</span>
+                </td>
+                <td>
+                    {% if trend.is_active %}
+                    <span class="badge bg-success">Активен</span>
+                    {% else %}
+                    <span class="badge bg-danger">Неактивен</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if trend.is_popular %}
+                    <span class="badge bg-warning">★</span>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if trend.tags %}
+                    <small>
+                        {% for tag in trend.tags %}
+                        <span class="badge bg-light text-dark">#{{ tag }}</span>
+                        {% endfor %}
+                    </small>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="/admin/trends/{{ trend.id }}/edit" class="btn btn-sm btn-primary">
+                        Редактировать
+                    </a>
+                    <button class="btn btn-sm btn-danger" onclick="deleteTrend({{ trend.id }})">
+                        Удалить
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info" role="alert">
+    <h4 class="alert-heading">Трендов еще нет</h4>
+    <p>Трендов еще не создано. <a href="/admin/trends/create" class="alert-link">Создайте первый</a>.</p>
+</div>
+{% endif %}
+
+<script>
+    async function deleteTrend(trendId) {
+        if (!confirm('Вы уверены, что хотите удалить этот тренд?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/trends/${trendId}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Ошибка при удалении тренда');
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert('При удалении тренда произошла ошибка');
+        }
+    }
+</script>
+{% endblock %}
