@@ -15,7 +15,7 @@
 1. **Клонировать репозиторий**
 ```bash
 git clone <repository-url>
-cd trendsee
+cd project
 ```
 
 2. **Настроить переменные окружения**
