@@ -264,13 +264,13 @@ curl http://localhost:8000/balance
 
 ### Модель/провайдер для тестов
 - **OpenRouter** - api gateway
-- **Model:** `openai/gpt-4o-mini` (по умолчанию)
-- **Model:** `google/gemma-3-27b-it:free` (в .env.example)
+- **Model:** `openrouter/free` (бесплатная модель - автоматический выбор)
+- **Альтернативы:** `openai/gpt-4o-mini`, `google/gemma-3-27b-it:free`, `meta-llama/llama-3.1-8b-instruct:free`
 
 ### Расход токенов
 - **Разработка (Claude):** ~150K tokens
-- **Тестирование (OpenRouter):** ~15K tokens (~$0.01)
-- **Общая стоимость:** ~$0.50
+- **Тестирование (OpenRouter):** ~15K tokens (**$0.00** - использовалась бесплатная модель `openrouter/free`)
+- **Общая стоимость разработки:** ~$0.50 (только Claude для разработки)
 
 ---
 
